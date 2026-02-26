@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: GPL-2.0+
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	model = "Cavium Celestial CNC1800L";
+	compatible = "cavium,cnc1800l";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+		bootargs = "console=ttyS0,115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x08900000>;
+	};
+
+	cpus {
+		#address-cells = <0>;
+		#size-cells = <0>;
+
+		cpu {
+			compatible = "arm,arm1176jzf";
+			device_type = "cpu";
+		};
+	};
+
+	clocks {
+		timclk: timclk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <94500000>;
+		};
+		pclk: pclk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <47250000>;
+		};
+	};
+
+	timer0: timer@801e2000 {
+		compatible = "snps,dw-apb-timer";
+		reg = <0x801e2000 0x100>;
+		clocks = <&pclk>;
+		bootph-all;
+	};
+
+	uart0: serial@801f1000 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x801f1000 0x100>;
+		reg-io-width = <1>;
+		clocks = <&pclk>;
+		reg-shift = <2>;
+		bootph-all;
+	};
+
+	watchdog0: wd@801e1000 {
+		compatible = "snps,dw-wdt";
+		reg = <0x801e1000 0x100>;
+		clocks = <&timclk>;
+	};
+
+	nand0: nand@a4000000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "cavium,cnc1800l-nand";
+		reg = <0x80100000 0x48>,	/* SMC */
+		      <0xa4000000 0x2000000>;	/* NAND */
+	};
+
+	gpio@80260000 {
+		compatible = "cavium,cnc1800l-gpio";
+		reg = <0x80260000 0x100>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};

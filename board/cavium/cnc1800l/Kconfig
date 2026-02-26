@@ -1,0 +1,15 @@
+if TARGET_CNC1800L
+
+config SYS_BOARD
+	default "cnc1800l"
+
+config SYS_VENDOR
+	default "cavium"
+
+config SYS_SOC
+	default "cnc1800l"
+
+config SYS_CONFIG_NAME
+	default "cnc1800l"
+
+endif

@@ -709,6 +709,19 @@ config ARCH_BCMBCA
 	select OF_CONTROL
 	imply CMD_DM
 
+config ARCH_CNC1800L
+	bool "Cavium CNC1800L"
+	select CPU_ARM1176
+	select DM
+	select DM_SERIAL
+	select OF_CONTROL
+	select TIMER
+	select SYS_NS16550
+	imply CMD_DM
+	help
+	  Support for the Cavium CNC1800L SoC (ARM1176JZF-S),
+	  used in various set-top box platforms.
+
 config TARGET_VEXPRESS_CA9X4
 	bool "Support vexpress_ca9x4"
 	select CPU_V7A
@@ -2292,6 +2305,8 @@ source "arch/arm/mach-davinci/Kconfig"
 source "arch/arm/mach-exynos/Kconfig"
 
 source "arch/arm/mach-hpe/gxp/Kconfig"
+
+source "arch/arm/mach-cnc1800l/Kconfig"
 
 source "arch/arm/mach-highbank/Kconfig"
 

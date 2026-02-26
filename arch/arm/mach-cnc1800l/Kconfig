@@ -1,0 +1,12 @@
+if ARCH_CNC1800L
+
+config TARGET_CNC1800L
+	bool "Cavium CNC1800L board"
+	help
+	  Support for Cavium CNC1800L based boards.
+	  The CNC1800L SoC features an ARM1176JZF-S core
+	  with NAND flash, USB, UART, and various peripherals.
+
+source "board/cavium/cnc1800l/Kconfig"
+
+endif
