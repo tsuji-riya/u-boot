@@ -1,0 +1,6 @@
+XT-MX4VR-V10
+M:      Paolo Sabatino <paolo.sabatino@gmail.com>
+S:      Out of tree
+F:      board/rockchip/rk322x-box
+F:      include/configs/rk322x-box.h
+F:      configs/rk322x-box_defconfig

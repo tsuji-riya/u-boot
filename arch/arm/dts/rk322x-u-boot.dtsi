@@ -54,3 +54,41 @@
 &sdmmc {
 	max-frequency = <150000000>;
 };
+
+/*
+ * The dwc2/ehci drivers need the reset lines of the USB controllers.  Linux
+ * does not, so they are added here instead of to the imported Linux DT.
+ */
+&usb_otg {
+	resets = <&cru SRST_USBOTG>;
+	reset-names = "dwc2";
+};
+
+&usb_host0_ehci {
+	resets = <&cru SRST_USBHOST0>;
+	reset-names = "ehci";
+};
+
+&usb_host1_ehci {
+	resets = <&cru SRST_USBHOST1>;
+	reset-names = "ehci";
+};
+
+&usb_host2_ehci {
+	resets = <&cru SRST_USBHOST2>;
+	reset-names = "ehci";
+};
+
+/* The integrated 10/100 PHY needs its own clock and reset */
+&gmac {
+	clocks = <&cru SCLK_MAC>, <&cru SCLK_MAC_RX>,
+		<&cru SCLK_MAC_TX>, <&cru SCLK_MAC_REF>,
+		<&cru SCLK_MAC_REFOUT>, <&cru ACLK_GMAC>,
+		<&cru PCLK_GMAC>, <&cru SCLK_MAC_PHY>;
+	clock-names = "stmmaceth", "mac_clk_rx",
+		"mac_clk_tx", "clk_mac_ref",
+		"clk_mac_refout", "aclk_mac",
+		"pclk_mac", "clk_macphy";
+	resets = <&cru SRST_GMAC>, <&cru SRST_MACPHY>;
+	reset-names = "stmmaceth", "mac-phy";
+};

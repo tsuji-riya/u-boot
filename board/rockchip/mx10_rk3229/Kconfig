@@ -1,0 +1,12 @@
+if TARGET_MX10_RK3229
+
+config SYS_BOARD
+	default "mx10_rk3229"
+
+config SYS_VENDOR
+	default "rockchip"
+
+config SYS_CONFIG_NAME
+	default "mx10_rk3229"
+
+endif

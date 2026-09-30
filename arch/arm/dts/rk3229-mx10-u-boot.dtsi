@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: GPL-2.0+
+
+#include "rk322x-u-boot.dtsi"
+
+/ {
+	chosen {
+		stdout-path = &uart2;
+	};
+};
+
+/*
+ * NOTE: TPL/SPL are not used on this board (the vendor idblock does the DDR
+ * training and the vendor loader starts this U-Boot as the "uboot" image),
+ * but ROCKCHIP_RK322X still builds them and they need these properties.
+ * The values below are the EVB-RK3229 DDR3 timings and are NOT validated
+ * for the MX10's DRAM.  Do not flash a TPL/SPL based image (u-boot-rockchip
+ * .bin) to sector 64 on this board with them.
+ */
+&dmc {
+	rockchip,pctl-timing = <0x96 0xC8 0x1F3 0xF 0x8000004D 0x4 0x4E 0x6 0x3
+		0x0 0x6 0x5 0xC 0x10 0x6 0x4 0x4
+		0x5 0x4 0x200 0x3 0xA 0x40 0x0 0x1
+		0x5 0x5 0x3 0xC 0x1E 0x100 0x0 0x4
+		0x0 0x924>;
+	rockchip,phy-timing = <0x220 0x1 0x0 0x0 0x0 0x4 0x60>;
+	rockchip,sdram-params = <0x428B188 0x0 0x21 0x472 0x15
+		0 300 3 0 120>;
+};
+
+&emmc {
+	bootph-all;
+};
+
+&sdmmc {
+	bootph-all;
+};
+
+&uart2 {
+	bootph-all;
+};
+
+&{/leds/led-0} {
+	/* red status LED: off while U-Boot runs */
+	default-state = "off";
+};
+
+/*
+ * The Rockchip loader chain-loads this U-Boot, so lighting the blue front
+ * LED is a cheap way to see that U-Boot is running even without a serial
+ * console.
+ */
+&{/leds/led-1} {
+	default-state = "on";
+};

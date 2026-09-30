@@ -1,0 +1,15 @@
+if TARGET_RK322X_BOX
+
+config SYS_BOARD
+	default "rk322x-box"
+
+config SYS_VENDOR
+	default "rockchip"
+
+config SYS_CONFIG_NAME
+	default "rk322x-box"
+
+config BOARD_SPECIFIC_OPTIONS # dummy
+	def_bool y
+
+endif

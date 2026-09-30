@@ -1351,7 +1351,10 @@ static int dwc2_usb_remove(struct udevice *dev)
 
 	dwc2_uninit_common(priv->regs);
 
-	reset_release_bulk(&priv->resets);
+	// Assert first and then leave the resets deasserted
+	reset_assert_bulk(&priv->resets);
+	reset_deassert_bulk(&priv->resets);
+
 	clk_disable_bulk(&priv->clks);
 	clk_release_bulk(&priv->clks);
 

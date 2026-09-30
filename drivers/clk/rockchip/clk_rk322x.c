@@ -41,6 +41,7 @@ enum {
 /* use integer mode*/
 static const struct pll_div apll_init_cfg = PLL_DIVISORS(APLL_HZ, 1, 3, 1);
 static const struct pll_div gpll_init_cfg = PLL_DIVISORS(GPLL_HZ, 2, 2, 1);
+static const struct pll_div cpll_init_cfg = PLL_DIVISORS(CPLL_HZ, 2, 3, 1);
 
 static int rkclk_set_pll(struct rk322x_cru *cru, enum rk_clk_id clk_id,
 			 const struct pll_div *div)
@@ -90,11 +91,13 @@ static void rkclk_init(struct rk322x_cru *cru)
 	rk_clrsetreg(&cru->cru_mode_con,
 		     GPLL_MODE_MASK | APLL_MODE_MASK,
 		     GPLL_MODE_SLOW << GPLL_MODE_SHIFT |
-		     APLL_MODE_SLOW << APLL_MODE_SHIFT);
+		     APLL_MODE_SLOW << APLL_MODE_SHIFT |
+		     CPLL_MODE_SLOW << CPLL_MODE_SHIFT);
 
 	/* init pll */
 	rkclk_set_pll(cru, CLK_ARM, &apll_init_cfg);
 	rkclk_set_pll(cru, CLK_GENERAL, &gpll_init_cfg);
+	rkclk_set_pll(cru, CLK_CODEC, &cpll_init_cfg);
 
 	/*
 	 * select apll as cpu/core clock pll source and
@@ -167,7 +170,8 @@ static void rkclk_init(struct rk322x_cru *cru)
 	rk_clrsetreg(&cru->cru_mode_con,
 		     GPLL_MODE_MASK | APLL_MODE_MASK,
 		     GPLL_MODE_NORM << GPLL_MODE_SHIFT |
-		     APLL_MODE_NORM << APLL_MODE_SHIFT);
+		     APLL_MODE_NORM << APLL_MODE_SHIFT |
+		     CPLL_MODE_NORM << CPLL_MODE_SHIFT);
 }
 
 /* Get pll rate by id */
@@ -257,11 +261,10 @@ static ulong rk322x_mac_set_clk(struct rk322x_cru *cru, uint freq)
 		ulong pll_rate;
 		u8 div;
 
-		if ((con >> MAC_PLL_SEL_SHIFT) & MAC_PLL_SEL_MASK)
+		if (con & MAC_PLL_SEL_MASK)
 			pll_rate = GPLL_HZ;
 		else
-			/* CPLL is not set */
-			return -EPERM;
+			pll_rate = CPLL_HZ;
 
 		div = DIV_ROUND_UP(pll_rate, freq) - 1;
 		if (div <= 0x1f)
@@ -366,12 +369,82 @@ static ulong rk322x_clk_get_rate(struct clk *clk)
 	case SCLK_SDMMC:
 		rate = rockchip_mmc_get_clk(priv->cru, gclk_rate, clk->id);
 		break;
+	case SCLK_HDMI_PHY:
+	case PCLK_HDMI_PHY:
+	case DCLK_HDMI_PHY:
+	case SCLK_HDMI_HDCP:
+	case PCLK_HDMI_CTRL:
+	case SCLK_HDMI_CEC:
+		printf("Attempt to get clk id %ld\n", clk->id);
+		return 0;
 	default:
 		return -ENOENT;
 	}
 
 	return rate;
 }
+
+#ifndef CONFIG_SPL_BUILD
+static ulong rk3228_vop_get_clk(struct rk322x_cru *cru, ulong clk_id)
+{
+	u32 div, con, parent;
+
+	switch (clk_id) {
+		case DCLK_VOP:
+			con = readl(&cru->cru_clksel_con[27]);
+			div = (con & VOP_DCLK_DIV_MASK) >> VOP_DCLK_DIV_SHIFT;
+			parent = GPLL_HZ;
+			break;
+		case ACLK_VOP:
+			con = readl(&cru->cru_clksel_con[33]);
+			div = (con & VOP_ACLK_DIV_MASK) >> VOP_ACLK_DIV_SHIFT;
+			parent = GPLL_HZ;
+			break;
+		default:
+			debug("%s: Unsupported vop get clk#%ld\n", __func__, clk_id);
+			return -ENOENT;
+	}
+
+	return DIV_TO_RATE(parent, div);
+}
+
+static ulong rk3228_vop_set_clk(struct rk322x_cru *cru,
+				ulong clk_id, uint hz)
+{
+	int src_clk_div;
+
+	src_clk_div = DIV_ROUND_UP(GPLL_HZ, hz);
+	assert(src_clk_div - 1 < 31);
+
+	switch (clk_id) {
+		case DCLK_VOP:
+
+			/*
+			 * Set HDMI parent clock to HDMIPHY. Normally, this is done
+			 * by .set_parent, but u-boot does not seem to work well with
+			 * device tree references
+			 */
+			rk_clrsetreg(&cru->cru_misc_con, BIT(13), 0);
+
+			rk_clrsetreg(&cru->cru_clksel_con[27],
+				VOP_DCLK_DIV_MASK | VOP_DCLK_PLL_SEL_MASK,
+				VOP_DCLK_SEL_GPLL << VOP_DCLK_PLL_SEL_SHIFT |
+				(src_clk_div - 1) << VOP_DCLK_DIV_SHIFT);
+			break;
+		case ACLK_VOP:
+			rk_clrsetreg(&cru->cru_clksel_con[33],
+				VOP_ACLK_DIV_MASK | VOP_ACLK_PLL_SEL_MASK,
+				VOP_ACLK_SEL_GPLL << VOP_ACLK_PLL_SEL_SHIFT |
+				(src_clk_div - 1) << VOP_ACLK_DIV_SHIFT);
+			break;
+		default:
+			printf("%s: Unable to set vop clk#%ld\n", __func__, clk_id);
+			return -EINVAL;
+	}
+
+	return rk3228_vop_get_clk(cru, clk_id);
+}
+#endif
 
 static ulong rk322x_clk_set_rate(struct clk *clk, ulong rate)
 {
@@ -390,11 +463,34 @@ static ulong rk322x_clk_set_rate(struct clk *clk, ulong rate)
 	case CLK_DDR:
 		new_rate = rk322x_ddr_set_clk(priv->cru, rate);
 		break;
+	case SCLK_MAC_SRC:
 	case SCLK_MAC:
 		new_rate = rk322x_mac_set_clk(priv->cru, rate);
 		break;
 	case PLL_GPLL:
-		return 0;
+	case PLL_CPLL:
+	case ACLK_PERI:
+	case HCLK_PERI:
+	case PCLK_PERI:
+	case ACLK_CPU:
+	case HCLK_CPU:
+	case PCLK_CPU:
+	case ARMCLK:
+	case SCLK_HDMI_PHY:
+	case PCLK_HDMI_PHY:
+	case DCLK_HDMI_PHY:
+	case SCLK_HDMI_HDCP:
+	case PCLK_HDMI_CTRL:
+	case SCLK_HDMI_CEC:
+		debug("Attempt to set clkid %ld, rate=%ld\n", clk->id, rate);
+		return rate;
+#ifndef CONFIG_SPL_BUILD
+	case ACLK_VOP:
+	case DCLK_VOP:
+		debug("VOP set rate clkid %ld, rate=%ld\n", clk->id, rate);
+		rate = rk3228_vop_set_clk(priv->cru, clk->id, rate);
+		break;
+#endif
 	default:
 		return -ENOENT;
 	}
@@ -455,23 +551,175 @@ static int rk322x_gmac_extclk_set_parent(struct clk *clk, struct clk *parent)
 	return -EINVAL;
 }
 
+static int rk322x_hdmi_set_parent(struct clk *clk, struct clk *parent)
+{
+	struct rk322x_clk_priv *priv = dev_get_priv(clk->dev);
+	const char *clock_output_name;
+	struct rk322x_cru *cru = priv->cru;
+	int ret;
+
+	ret = dev_read_string_index(parent->dev, "clock-output-names",
+				    parent->id, &clock_output_name);
+	if (ret < 0)
+		return -ENODATA;
+
+	if (!strcmp(clock_output_name, "hdmiphy_phy")) {
+		debug("%s: switching hdmi_sclk to hdmiphy_phy\n", __func__);
+		rk_clrsetreg(&cru->cru_misc_con, BIT(13), 0);
+		return 0;
+	} else if (!strcmp(clock_output_name, "xin24m")) {
+		debug("%s: switching hdmi_sclk to xin24m\n", __func__);
+		rk_clrsetreg(&cru->cru_misc_con, BIT(13), BIT(13));
+		return 0;
+	}
+
+	return -EINVAL;
+
+}
+
 static int rk322x_clk_set_parent(struct clk *clk, struct clk *parent)
 {
+
+	debug("%s, clkid=%ld, parent=%ld\n", __func__, clk->id, parent->id);
+
 	switch (clk->id) {
 	case SCLK_MAC:
 		return rk322x_gmac_set_parent(clk, parent);
 	case SCLK_MAC_EXTCLK:
 		return rk322x_gmac_extclk_set_parent(clk, parent);
+	case SCLK_HDMI_PHY:
+		return rk322x_hdmi_set_parent(clk, parent);
 	}
 
 	debug("%s: unsupported clk %ld\n", __func__, clk->id);
 	return -ENOENT;
 }
 
+static int rk322x_clk_enable(struct clk *clk)
+{
+
+	struct rk322x_clk_priv *priv = dev_get_priv(clk->dev);
+        struct rk322x_cru *cru = priv->cru;
+
+	switch (clk->id) {
+        case SCLK_OTGPHY0:
+                rk_clrreg(&cru->cru_clkgate_con[1], BIT(5));
+                break;
+        case SCLK_OTGPHY1:
+                rk_clrreg(&cru->cru_clkgate_con[1], BIT(6));
+                break;
+	case HCLK_OTG:
+		rk_clrreg(&cru->cru_clkgate_con[11], BIT(12));
+		break;
+	case HCLK_HOST0:
+		rk_clrreg(&cru->cru_clkgate_con[11], BIT(6));
+		break;
+	case HCLK_HOST1:
+		rk_clrreg(&cru->cru_clkgate_con[11], BIT(8));
+		break;
+	case HCLK_HOST2:
+		rk_clrreg(&cru->cru_clkgate_con[11], BIT(10));
+		break;
+	case SCLK_MAC:
+		rk_clrreg(&cru->cru_clkgate_con[1], BIT(6));
+		break;
+	case SCLK_MAC_SRC:
+		rk_clrreg(&cru->cru_clkgate_con[1], BIT(7));
+		break;
+	case SCLK_MAC_RX:
+		rk_clrreg(&cru->cru_clkgate_con[5], BIT(5));
+		break;
+	case SCLK_MAC_TX:
+		rk_clrreg(&cru->cru_clkgate_con[5], BIT(6));
+		break;
+	case SCLK_MAC_REF:
+		rk_clrreg(&cru->cru_clkgate_con[5], BIT(3));
+		break;
+	case SCLK_MAC_REFOUT:
+		rk_clrreg(&cru->cru_clkgate_con[5], BIT(4));
+		break;
+	case SCLK_MAC_PHY:
+		rk_clrreg(&cru->cru_clkgate_con[5], BIT(7));
+		break;
+	case ACLK_GMAC:
+		rk_clrreg(&cru->cru_clkgate_con[11], BIT(4));
+		break;
+	case PCLK_GMAC:
+		rk_clrreg(&cru->cru_clkgate_con[11], BIT(5));
+		break;
+	default:
+		log_debug("%s: unsupported clk %ld\n", __func__, clk->id);
+		return -ENOENT;
+	}
+
+	return 0;
+
+}
+
+static int rk322x_clk_disable(struct clk *clk)
+{
+
+	struct rk322x_clk_priv *priv = dev_get_priv(clk->dev);
+        struct rk322x_cru *cru = priv->cru;
+
+	switch (clk->id) {
+        case SCLK_OTGPHY0:
+                rk_setreg(&cru->cru_clkgate_con[1], BIT(5));
+                break;
+        case SCLK_OTGPHY1:
+                rk_setreg(&cru->cru_clkgate_con[1], BIT(6));
+                break;
+	case HCLK_OTG:
+		rk_setreg(&cru->cru_clkgate_con[11], BIT(12));
+		break;
+	case HCLK_HOST0:
+		rk_setreg(&cru->cru_clkgate_con[11], BIT(6));
+		break;
+	case HCLK_HOST1:
+		rk_setreg(&cru->cru_clkgate_con[11], BIT(8));
+		break;
+	case HCLK_HOST2:
+		rk_setreg(&cru->cru_clkgate_con[11], BIT(10));
+		break;
+	case SCLK_MAC_SRC:
+		rk_setreg(&cru->cru_clkgate_con[1], BIT(7));
+		break;
+	case SCLK_MAC_RX:
+		rk_setreg(&cru->cru_clkgate_con[5], BIT(5));
+		break;
+	case SCLK_MAC_TX:
+		rk_setreg(&cru->cru_clkgate_con[5], BIT(6));
+		break;
+	case SCLK_MAC_REF:
+		rk_setreg(&cru->cru_clkgate_con[5], BIT(3));
+		break;
+	case SCLK_MAC_REFOUT:
+		rk_setreg(&cru->cru_clkgate_con[5], BIT(4));
+		break;
+	case SCLK_MAC_PHY:
+		rk_setreg(&cru->cru_clkgate_con[5], BIT(7));
+		break;
+	case ACLK_GMAC:
+		rk_setreg(&cru->cru_clkgate_con[11], BIT(4));
+		break;
+	case PCLK_GMAC:
+		rk_setreg(&cru->cru_clkgate_con[11], BIT(5));
+		break;
+	default:
+		log_debug("%s: unsupported clk %ld\n", __func__, clk->id);
+		return -ENOENT;
+	}
+
+	return 0;
+
+}
+
 static struct clk_ops rk322x_clk_ops = {
 	.get_rate	= rk322x_clk_get_rate,
 	.set_rate	= rk322x_clk_set_rate,
 	.set_parent	= rk322x_clk_set_parent,
+	.enable     = rk322x_clk_enable,
+	.disable    = rk322x_clk_disable
 };
 
 static int rk322x_clk_of_to_plat(struct udevice *dev)
@@ -519,7 +767,7 @@ static int rk322x_clk_bind(struct udevice *dev)
 		debug("Warning: software reset driver bind failed\n");
 #endif
 
-	return 0;
+	return ret;
 }
 
 static const struct udevice_id rk322x_clk_ids[] = {
@@ -528,7 +776,7 @@ static const struct udevice_id rk322x_clk_ids[] = {
 };
 
 U_BOOT_DRIVER(rockchip_rk322x_cru) = {
-	.name		= "clk_rk322x",
+	.name		= "rockchip_rk322x_cru",
 	.id		= UCLASS_CLK,
 	.of_match	= rk322x_clk_ids,
 	.priv_auto	= sizeof(struct rk322x_clk_priv),

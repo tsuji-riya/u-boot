@@ -147,9 +147,9 @@ static int ehci_usb_remove(struct udevice *dev)
 	if (ret)
 		return ret;
 
-	ret = reset_release_bulk(&priv->resets);
-	if (ret)
-		return ret;
+	// Assert first and then leave the resets deasserted
+	reset_assert_bulk(&priv->resets);
+	reset_deassert_bulk(&priv->resets);
 
 	return clk_release_bulk(&priv->clocks);
 }

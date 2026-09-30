@@ -1,0 +1,7 @@
+MX10-RK3229
+S:	Maintained
+F:	arch/arm/dts/rk3229-mx10.dts
+F:	arch/arm/dts/rk3229-mx10-u-boot.dtsi
+F:	board/rockchip/mx10_rk3229
+F:	include/configs/mx10_rk3229.h
+F:	configs/mx10-rk3229_defconfig

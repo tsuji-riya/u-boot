@@ -5,6 +5,21 @@ config TARGET_EVB_RK3229
 	bool "EVB_RK3229"
 	select BOARD_LATE_INIT
 
+config TARGET_MX10_RK3229
+	bool "MX10 RK3229 TV box"
+	select BOARD_LATE_INIT
+	help
+	  RK3229 "MX10" style Android TV box (1 GiB DDR3, 8 GiB eMMC).
+	  This U-Boot is started by the original Rockchip loader (vendor
+	  idblock + trust/TOS) from the "uboot" partition.
+
+config TARGET_RK322X_BOX
+	bool "RK322X-BOX"
+	select BOARD_LATE_INIT
+	help
+	  Generic RK322x TV box, booted through the TPL/SPL chain with the
+	  Rockchip DDR blob and OP-TEE.
+
 config ROCKCHIP_BOOT_MODE_REG
 	default 0x110005c8
 
@@ -33,5 +48,7 @@ config TPL_TEXT_BASE
         default 0x10081000
 
 source "board/rockchip/evb_rk3229/Kconfig"
+source "board/rockchip/mx10_rk3229/Kconfig"
+source "board/rockchip/rk322x-box/Kconfig"
 
 endif
