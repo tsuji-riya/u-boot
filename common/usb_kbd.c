@@ -30,6 +30,14 @@
 #define USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_2021			0x029c
 #define USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_FINGERPRINT_2021	0x029a
 #define USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_NUMPAD_2021		0x029f
+/*
+ * 2024 USB-C Magic Keyboards.  Their first interface is "Device Management"
+ * (no boot subclass) and the boot keyboard is interface 1, but the USB core
+ * only matches interface 0, so they have to be listed by device ID.
+ */
+#define USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_2024			0x0320
+#define USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_TOUCHID_2024		0x0321
+#define USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_TOUCHID_NUMPAD_2024	0x0322
 
 #define USB_VENDOR_ID_KEYCHRON	0x3434
 
@@ -610,8 +618,11 @@ static int probe_usb_keyboard(struct usb_device *dev)
 		if (usb_kbd_probe_dev(dev, ifnum) == 1)
 			break;
 	}
-	if (ifnum >= max_ifnum)
+	if (ifnum >= max_ifnum) {
+		printf("usbkbd: no usable boot keyboard interface\n");
 		return -ENOENT;
+	}
+	debug("USB KBD: using interface %u\n", ifnum);
 
 	/* Register the keyboard */
 	debug("USB KBD: register.\n");
@@ -723,6 +734,18 @@ static const struct usb_device_id kbd_id_table[] = {
 	{
 		USB_DEVICE(USB_VENDOR_ID_APPLE,
 			   USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_NUMPAD_2021),
+	},
+	{
+		USB_DEVICE(USB_VENDOR_ID_APPLE,
+			   USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_2024),
+	},
+	{
+		USB_DEVICE(USB_VENDOR_ID_APPLE,
+			   USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_TOUCHID_2024),
+	},
+	{
+		USB_DEVICE(USB_VENDOR_ID_APPLE,
+			   USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_TOUCHID_NUMPAD_2024),
 	},
 	{ }		/* Terminating entry */
 };
