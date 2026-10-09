@@ -2,14 +2,16 @@
 /*
  * Configuration for the MX10 style RK3229 TV box.
  *
- * Only the SD card (mmc0) and the eMMC (mmc2) are boot targets: the SDIO
- * slot (mmc1) carries the Wi-Fi module, and neither Ethernet (internal
- * RMII PHY) nor USB host are supported by U-Boot for this SoC yet.
+ * Boot targets: USB mass storage first, then the SD card (mmc0) and the
+ * eMMC (mmc2).  The SDIO slot (mmc1) carries the Wi-Fi module and is not a
+ * boot target.  The RK322x BootROM cannot boot from USB itself: this U-Boot
+ * is started by the loader chain stored on the eMMC and only then looks at
+ * the USB ports.  The internal RMII PHY (Ethernet) is not supported.
  */
 #ifndef __CONFIG_MX10_RK3229_H
 #define __CONFIG_MX10_RK3229_H
 
-#define BOOT_TARGETS	"mmc0 mmc2"
+#define BOOT_TARGETS	"usb mmc0 mmc2"
 
 #include <configs/rk322x_common.h>
 
@@ -21,6 +23,9 @@
  */
 #undef CFG_EXTRA_ENV_SETTINGS
 #define CFG_EXTRA_ENV_SETTINGS \
+	"stdin=serial,usbkbd\0" \
+	"stdout=serial,vidconsole\0" \
+	"stderr=serial,vidconsole\0" \
 	"fdtfile=" CONFIG_DEFAULT_FDT_FILE "\0" \
 	"fdt_high=0x7fffffff\0" \
 	"partitions=" PARTS_DEFAULT \

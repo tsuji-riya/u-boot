@@ -52,3 +52,17 @@
 &{/leds/led-1} {
 	default-state = "on";
 };
+
+/*
+ * HDMI output.  The U-Boot clock driver cannot handle clock parents yet, so
+ * the assigned-clocks of the Linux node must go (same as Armbian's rk322x-box).
+ * The VOP is needed before relocation to reserve the frame buffer.
+ */
+&hdmi {
+	/delete-property/ assigned-clocks;
+	/delete-property/ assigned-clock-parents;
+};
+
+&vop {
+	bootph-all;
+};
