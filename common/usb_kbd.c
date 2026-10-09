@@ -579,6 +579,16 @@ static int usb_kbd_probe_dev(struct usb_device *dev, unsigned int ifnum)
 	 */
 	if (quirks & USB_HID_QUIRK_POLL_NO_REPORT_IDLE) {
 		debug("USB KBD: quirk: skip testing device state\n");
+#ifdef CONFIG_SYS_USB_EVENT_POLL_VIA_INT_QUEUE
+		/* The poll path needs the queue even if we skip the test */
+		data->intq = create_int_queue(dev, data->intpipe, 1,
+					      USB_KBD_BOOT_REPORT_SIZE,
+					      data->new, data->intinterval);
+		if (!data->intq) {
+			printf("usbkbd: cannot create interrupt queue\n");
+			return 0;
+		}
+#endif
 		return 1;
 	}
 	debug("USB KBD: enable interrupt pipe...\n");
