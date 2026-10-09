@@ -1615,6 +1615,8 @@ static struct int_queue *_ohci_create_int_queue(ohci_t *ohci,
 	}
 
 	for (i = 0; i < queuesize; i++) {
+		/* Write back stale dirty lines so they cannot clobber the DMA */
+		flush_dcache_buffer(buffer + i * elementsize, elementsize);
 		queue->urb[i] = ohci_alloc_urb(udev, pipe,
 					       buffer + i * elementsize,
 					       elementsize, interval);
@@ -1650,6 +1652,10 @@ static void *_ohci_poll_int_queue(ohci_t *ohci, struct usb_device *udev,
 
 	if (queue->urb[queue->curr_urb]->finished) {
 		void *ret = queue->urb[queue->curr_urb]->transfer_buffer;
+
+		/* The HC wrote the data by DMA: drop any stale cache lines */
+		invalidate_dcache_buffer(ret,
+			queue->urb[queue->curr_urb]->transfer_buffer_length);
 		queue->curr_urb++;
 		return ret;
 	}
